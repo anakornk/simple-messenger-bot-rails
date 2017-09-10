@@ -1,9 +1,11 @@
 class BotsController < ApplicationController
   skip_before_action :verify_authenticity_token, only: [:webhook]
 
+  # Display the web page
   def index
   end
 
+  # Webhook validation
   def validate
     # puts params["hub.mode"]
     if params["hub.mode"] == "subscribe" && params["hub.verify_token"] == ENV["VERIFY_TOKEN"]
@@ -15,11 +17,15 @@ class BotsController < ApplicationController
     end
   end
 
+  # Message processing
   def webhook
+    # Make sure this is a page subscription
     if params["object"] == "page"
+      # Iterate over each entry - there may be multiple if batched
       params["entry"].each do |entry|
         page_id = entry["id"]
         time_of_event = entry["time"]
+        # Iterate over each messaging event
         entry["messaging"].each do |event|
           if event["message"]
             received_message(event)
@@ -31,9 +37,15 @@ class BotsController < ApplicationController
         end
       end
     end
+    # Assume all went well.
+    #
+    # You must send back a 200, within 20 seconds, to let us know
+    # you've successfully received the callback. Otherwise, the request
+    # will time out and we will keep trying to resend.
     render plain: "success", status: 200
   end
 
+  # Incoming events handling
   def received_message(event)
     sender_id = event["sender"]["id"]
     recipient_id = event["recipient"]["id"]
@@ -46,6 +58,8 @@ class BotsController < ApplicationController
     message_text = message["text"]
     message_attachments = message["attachments"]
     if message_text
+      # If we receive a text message, check to see if it matches a keyword
+      # and send back the template example. Otherwise, just echo the text we received.
       case message_text
       when 'generic'
         send_generic_message(sender_id)
@@ -61,12 +75,20 @@ class BotsController < ApplicationController
     recipient_id = event["recipient"]["id"]
     time_of_postback = event["timestamp"]
 
-
+    # The 'payload' param is a developer-defined field which is set in a postback
+    # button for Structured Messages.
     payload = event["postback"]["payload"]
 
     puts "Received postback for user #{sender_id} and page #{recipient_id} with payload '#{payload}' at #{time_of_postback}"
+
+    # When a postback is called, we'll send a message back to the sender to
+    # let them know it was successful
     send_text_message(sender_id, "Postback called")
   end
+
+  ###################
+  # Sending helpers #
+  ###################
 
   def send_text_message(recipient_id,message_text)
     # puts "send_text_message"
