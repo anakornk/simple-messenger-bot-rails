@@ -5,7 +5,7 @@ class BotsController < ApplicationController
   end
 
   def validate
-    #puts params["hub.mode"]
+    # puts params["hub.mode"]
     if params["hub.mode"] == "subscribe" && params["hub.verify_token"] == ENV["VERIFY_TOKEN"]
       puts "Validating webhook"
       render plain: params["hub.challenge"], status: 200
