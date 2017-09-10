@@ -57,6 +57,15 @@ class BotsController < ApplicationController
   end
 
   def received_postback(event)
+    sender_id = event["sender"]["id"]
+    recipient_id = event["recipient"]["id"]
+    time_of_postback = event["timestamp"]
+
+
+    payload = event["postback"]["payload"]
+
+    puts "Received postback for user #{sender_id} and page #{recipient_id} with payload '#{payload}' at #{time_of_postback}"
+    send_text_message(sender_id, "Postback called")
   end
 
   def send_text_message(recipient_id,message_text)
@@ -73,7 +82,50 @@ class BotsController < ApplicationController
   end
 
   def send_generic_message(recipient_id)
-    puts "generic"
+    # puts "generic"
+    message_data = {
+      recipient: {
+        id: recipient_id
+      },
+      message: {
+        attachment: {
+          type: "template",
+          payload: {
+            template_type: "generic",
+            elements: [{
+              title: "rift",
+              subtitle: "Next-generation virtual reality",
+              item_url: "https://www.oculus.com/en-us/rift/",
+              image_url: "http://messengerdemo.parseapp.com/img/rift.png",
+              buttons: [{
+                type: "web_url",
+                url: "https://www.oculus.com/en-us/rift/",
+                title: "Open Web URL"
+              }, {
+                type: "postback",
+                title: "Call Postback",
+                payload: "Payload for first bubble",
+              }],
+            }, {
+              title: "touch",
+              subtitle: "Your Hands, Now in VR",
+              item_url: "https://www.oculus.com/en-us/touch/",
+              image_url: "http://messengerdemo.parseapp.com/img/touch.png",
+              buttons: [{
+                type: "web_url",
+                url: "https://www.oculus.com/en-us/touch/",
+                title: "Open Web URL"
+              }, {
+                type: "postback",
+                title: "Call Postback",
+                payload: "Payload for second bubble",
+              }]
+            }]
+          }
+        }
+      }
+    }
+    call_send_api(message_data)
   end
 
   def call_send_api(message_data)
@@ -81,7 +133,10 @@ class BotsController < ApplicationController
     RestClient.post("https://graph.facebook.com/v2.6/me/messages?access_token=#{page_access_token}", message_data.to_json, {content_type: :json, accept: :json}){ |response, request, result|
       case response.code
       when 200
-        puts "Successfully sent generic message #{response.body}"
+        body_hash = JSON.parse(response.body)
+        recipient_id = body_hash["recipient_id"]
+        message_id = body_hash["message_id"]
+        puts "Successfully sent generic message with id #{message_id} to recipient #{recipient_id}"
       else
         puts "Unable to send message."
         puts response.to_json
